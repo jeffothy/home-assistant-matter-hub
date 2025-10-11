@@ -1,0 +1,64 @@
+# Home Assistant Matter Hub (Fork)
+
+Development build that auto-builds on every push to this repository.
+
+## Features
+
+- 🔄 Automatic builds via GitHub Actions
+- 🐳 Multi-architecture support (amd64, arm64, armv7)
+- 🏷️ Tagged builds per branch and commit
+- 🔧 Easy updates via addon rebuild
+
+## Installation
+
+1. Add this repository to Home Assistant:
+   - Settings → Add-ons → Add-on Store
+   - Click ⋮ (three dots) → Repositories
+   - Add: `https://github.com/jeffothy/home-assistant-matter-hub`
+
+2. Install the addon from the store
+
+3. Configure and start
+
+## Updating
+
+When new code is pushed to this repository:
+
+1. Wait for GitHub Actions build to complete (~5-10 min)
+2. In Home Assistant:
+   - Go to your addon
+   - Click ⋮ → **Rebuild**
+   - This pulls the latest image and rebuilds
+
+## Configuration
+
+### app_log_level (optional)
+Set the log level for the application.
+- `fatal`, `error`, `warn`, `notice`, `info` (default), `debug`
+
+### disable_log_colors (optional)
+Disable colored log output.
+- `false` (default) - Enable colors
+- `true` - Disable colors
+
+### mdns_network_interface (optional)
+Specify the network interface for mDNS.
+- Leave empty for auto-detect (default)
+- Example: `eth0`, `wlan0`
+
+## Support
+
+For issues with this fork, see:
+https://github.com/jeffothy/home-assistant-matter-hub/issues
+
+For the upstream project:
+https://github.com/t0bst4r/home-assistant-matter-hub
+
+## Version Tags
+
+The addon uses dynamic tagging:
+- `:main` - Latest from main branch
+- `:BRANCH` - Latest from specific branch
+- `:BRANCH-COMMIT` - Specific commit
+
+To use a specific version, edit the `config.yaml` in this repo and change the `image:` line, then commit and push.

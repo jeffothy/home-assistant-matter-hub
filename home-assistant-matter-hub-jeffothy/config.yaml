@@ -1,0 +1,25 @@
+name: "Home Assistant Matter Hub (jeffothy)"
+version: "3.0.0-jeffothy-dev"
+slug: "home-assistant-matter-hub-jeffothy"
+description: "Development build from jeffothy fork - auto-builds on every push"
+url: "https://github.com/jeffothy/home-assistant-matter-hub"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+image: "ghcr.io/jeffothy/home-assistant-matter-hub-addon:main"
+startup: services
+boot: auto
+hassio_api: true
+homeassistant_api: true
+ingress: true
+ingress_port: 8482
+panel_icon: mdi:chip
+options:
+  app_log_level: info
+  disable_log_colors: false
+  mdns_network_interface: ""
+schema:
+  app_log_level: list(fatal|error|warn|notice|info|debug)?
+  disable_log_colors: bool?
+  mdns_network_interface: str?

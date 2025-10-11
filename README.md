@@ -27,4 +27,13 @@ of port forwarding etc.
 Please see the [documentation](https://t0bst4r.github.io/home-assistant-matter-hub) for installation instructions,
 known issues, limitations and guides.
 
+## Fork Development & Testing
+
+This fork includes automatic builds and works as a Home Assistant addon repository!
+
+**Quick Start:**
+1. Add `https://github.com/jeffothy/home-assistant-matter-hub` to your HA addon repositories
+2. Install "Home Assistant Matter Hub (jeffothy)" from the addon store
+3. When you push code, rebuild the addon to get the latest build
+
 ---
