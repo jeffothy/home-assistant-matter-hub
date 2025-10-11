@@ -70,9 +70,14 @@ jobs:
           SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
           echo "short-sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
+          # Create build version string
+          BUILD_VERSION="${PACKAGE_VERSION}+${BRANCH_TAG}.${SHORT_SHA}"
+          echo "build-version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+
           echo "Package Version: $PACKAGE_VERSION"
           echo "Branch Tag: $BRANCH_TAG"
           echo "Short SHA: $SHORT_SHA"
+          echo "Build Version: $BUILD_VERSION"
 
       - name: Docker Meta
         id: docker_meta
@@ -95,7 +100,7 @@ jobs:
           labels: ${{ steps.docker_meta.outputs.labels }}
           build-args: |
             NODE_VERSION=22
-            PACKAGE_VERSION=${{ steps.meta.outputs.package-version }}
+            PACKAGE_VERSION=${{ steps.meta.outputs.build-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
