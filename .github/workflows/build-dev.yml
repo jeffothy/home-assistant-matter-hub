@@ -1,0 +1,123 @@
+name: Build Dev Addon
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-dev-addon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Application
+        run: pnpm build
+
+      - name: Pack Application
+        run: |
+          cd apps/home-assistant-matter-hub
+          pnpm pack
+          cd ../..
+
+      - name: Copy Package for Docker Build
+        run: node apps/docker/retrieve-package.js
+
+      - name: Get Package Version and Branch Name
+        id: meta
+        run: |
+          cd apps/docker/addon
+          PACKAGE_VERSION=$(tar xfO package.tgz package/package.json | jq -r ".version")
+          echo "package-version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Get branch name and sanitize it for docker tag
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          BRANCH_TAG=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "branch-tag=$BRANCH_TAG" >> "$GITHUB_OUTPUT"
+
+          # Get short SHA
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          echo "short-sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+          echo "Package Version: $PACKAGE_VERSION"
+          echo "Branch Tag: $BRANCH_TAG"
+          echo "Short SHA: $SHORT_SHA"
+
+      - name: Docker Meta
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-addon
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ steps.meta.outputs.branch-tag }}-${{ steps.meta.outputs.short-sha }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/docker/addon
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          build-args: |
+            NODE_VERSION=22
+            PACKAGE_VERSION=${{ steps.meta.outputs.package-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Summary
+        run: |
+          echo "## 🚀 Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package Version:** ${{ steps.meta.outputs.package-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker Images:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.docker_meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Use in Home Assistant" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Update your \`config.yaml\`:" >> $GITHUB_STEP_SUMMARY
+          echo '```yaml' >> $GITHUB_STEP_SUMMARY
+          echo "image: ghcr.io/${{ github.repository }}-addon:${{ steps.meta.outputs.branch-tag }}-${{ steps.meta.outputs.short-sha }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Or use the branch name:" >> $GITHUB_STEP_SUMMARY
+          echo '```yaml' >> $GITHUB_STEP_SUMMARY
+          echo "image: ghcr.io/${{ github.repository }}-addon:${{ steps.meta.outputs.branch-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
