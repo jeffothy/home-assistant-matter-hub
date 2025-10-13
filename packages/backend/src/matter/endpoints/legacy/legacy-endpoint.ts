@@ -72,6 +72,17 @@ export class LegacyEndpoint extends EntityEndpoint {
     this.debounceTimer = undefined;
     this.lastState = state;
 
+    // Wait for endpoint to finish initializing before attempting state updates.
+    // During startup, factory reset, or device re-pairing, HA may send state
+    // updates while endpoints are still being constructed. Attempting setStateOf
+    // during initialization causes UninitializedDependencyError crashes.
+    try {
+      await this.construction.ready;
+    } catch {
+      // If construction fails, endpoint is unusable, skip the update
+      return;
+    }
+
     const current = this.stateOf(HomeAssistantEntityBehavior).entity;
     await this.setStateOf(HomeAssistantEntityBehavior, {
       entity: { ...current, state },
