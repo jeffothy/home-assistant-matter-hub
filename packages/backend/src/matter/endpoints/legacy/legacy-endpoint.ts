@@ -35,12 +35,43 @@ export class LegacyEndpoint extends EntityEndpoint {
   }
 
   private lastState?: HomeAssistantEntityState;
+  private pendingState?: HomeAssistantEntityState;
+  private debounceTimer?: NodeJS.Timeout;
+  // Debounce state updates to batch rapid changes into a single transaction.
+  // Home Assistant often sends multiple attribute updates in quick succession
+  // (e.g., media player: volume + source + play state). Without debouncing,
+  // each update triggers separate Matter.js transactions, causing overhead
+  // and verbose transaction queueing logs. A 50ms window batches these updates
+  // while remaining imperceptible to users.
+  private readonly DEBOUNCE_MS = 50;
 
   async updateStates(states: HomeAssistantStates) {
     const state = states[this.entityId] ?? {};
     if (JSON.stringify(state) === JSON.stringify(this.lastState ?? {})) {
       return;
     }
+
+    this.pendingState = state;
+
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    this.debounceTimer = setTimeout(() => {
+      this.flushPendingUpdate();
+    }, this.DEBOUNCE_MS);
+  }
+
+  private async flushPendingUpdate() {
+    if (!this.pendingState) {
+      return;
+    }
+
+    const state = this.pendingState;
+    this.pendingState = undefined;
+    this.debounceTimer = undefined;
+    this.lastState = state;
+
     const current = this.stateOf(HomeAssistantEntityBehavior).entity;
     await this.setStateOf(HomeAssistantEntityBehavior, {
       entity: { ...current, state },
