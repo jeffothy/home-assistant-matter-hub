@@ -1,4 +1,8 @@
 import type { HomeAssistantEntityState } from "@home-assistant-matter-hub/common";
+import {
+  DestroyedDependencyError,
+  TransactionDestroyedError,
+} from "@matter/general";
 import type { EndpointType } from "@matter/main";
 import type { BridgeRegistry } from "../../../services/bridges/bridge-registry.js";
 import type { HomeAssistantStates } from "../../../services/home-assistant/home-assistant-registry.js";
@@ -45,6 +49,16 @@ export class LegacyEndpoint extends EntityEndpoint {
   // while remaining imperceptible to users.
   private readonly DEBOUNCE_MS = 50;
 
+  override async delete() {
+    // Clear any pending debounce timers to prevent callbacks firing after deletion
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
+      this.pendingState = undefined;
+    }
+    await super.delete();
+  }
+
   async updateStates(states: HomeAssistantStates) {
     const state = states[this.entityId] ?? {};
     if (JSON.stringify(state) === JSON.stringify(this.lastState ?? {})) {
@@ -83,9 +97,23 @@ export class LegacyEndpoint extends EntityEndpoint {
       return;
     }
 
-    const current = this.stateOf(HomeAssistantEntityBehavior).entity;
-    await this.setStateOf(HomeAssistantEntityBehavior, {
-      entity: { ...current, state },
-    });
+    try {
+      const current = this.stateOf(HomeAssistantEntityBehavior).entity;
+      await this.setStateOf(HomeAssistantEntityBehavior, {
+        entity: { ...current, state },
+      });
+    } catch (error) {
+      // Suppress errors that are expected during normal shutdown:
+      // - TransactionDestroyedError: Transaction context destroyed after shutdown
+      // - DestroyedDependencyError: Endpoint was destroyed/deleted
+      // All other errors (crashes, invalid states, etc.) should propagate
+      if (
+        error instanceof TransactionDestroyedError ||
+        error instanceof DestroyedDependencyError
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 }
