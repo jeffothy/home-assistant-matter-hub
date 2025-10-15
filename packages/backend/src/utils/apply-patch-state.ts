@@ -1,7 +1,23 @@
-export function applyPatchState<T extends object>(
+import { Transaction } from "@matter/general";
+
+/**
+ * Safely applies a patch to state, handling transaction contexts properly.
+ *
+ * Wraps the state update in Transaction.act() to properly acquire locks
+ * asynchronously, avoiding "synchronous-transaction-conflict" errors when
+ * called from within reactors or other transaction contexts.
+ */
+export async function applyPatchState<T extends object>(
   state: T,
   patch: Partial<T>,
-): Partial<T> {
+): Promise<Partial<T>> {
+  // Use Transaction.act to properly handle lock acquisition
+  return await Transaction.act("applyPatchState", async () => {
+    return applyPatch(state, patch);
+  });
+}
+
+function applyPatch<T extends object>(state: T, patch: Partial<T>): Partial<T> {
   // Only include values that need to be changed
   const actualPatch: Partial<T> = {};
 
@@ -19,7 +35,7 @@ export function applyPatchState<T extends object>(
     }
   }
 
-  // et properties individually to avoid transaction conflicts
+  // Set properties individually
   try {
     for (const key in actualPatch) {
       if (Object.hasOwn(actualPatch, key)) {
@@ -48,7 +64,7 @@ function deepEqual<T>(a: T, b: T): boolean {
   }
   if (typeof a === "object" && typeof b === "object") {
     const keys = Object.keys({ ...a, ...b }) as (keyof T)[];
-    return keys.every((key) => deepEqual(a[key], b[key]));
+    return keys.every((k) => deepEqual(a[k], b[k]));
   }
   return a === b;
 }
