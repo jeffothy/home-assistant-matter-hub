@@ -65,6 +65,15 @@ export class BridgeEndpointManager extends Service {
     for (const entityId of this.entityIds) {
       let endpoint = existingEndpoints.find((e) => e.entityId === entityId);
       if (!endpoint) {
+        // If registry has no initial state for this entity, skip and log a warning
+        const initial = this.registry.initialState(entityId);
+        if (initial === undefined) {
+          this.log.warn(
+            `Skipping creation for ${entityId} because initial state is missing.`,
+          );
+          continue;
+        }
+
         try {
           endpoint = await LegacyEndpoint.create(this.registry, entityId);
         } catch (e) {
