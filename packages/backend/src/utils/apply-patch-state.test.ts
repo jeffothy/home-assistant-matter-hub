@@ -124,7 +124,12 @@ describe("applyPatchState", () => {
       c: 0,
       d: "",
     };
-    const patch = await applyPatchState(state, { a: 0, b: 0, c: undefined, d: 0 });
+    const patch = await applyPatchState(state, {
+      a: 0,
+      b: 0,
+      c: undefined,
+      d: 0,
+    });
     expect(patch).toEqual({ a: 0, b: 0, d: 0 });
     expect(state).toEqual({ a: 0, b: 0, c: 0, d: 0 });
   });
