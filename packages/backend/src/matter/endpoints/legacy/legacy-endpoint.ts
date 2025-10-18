@@ -20,8 +20,30 @@ export class LegacyEndpoint extends EntityEndpoint {
     entityId: string,
   ): Promise<LegacyEndpoint | undefined> {
     const deviceRegistry = registry.deviceOf(entityId);
-    const state = registry.initialState(entityId);
+    const rawState = registry.initialState(entityId);
     const entity = registry.entity(entityId);
+
+    // Synthesize an "unavailable" Home Assistant state when no runtime state exists
+    // so the endpoint can represent an existing-but-offline entity.
+    let state: HomeAssistantEntityState;
+    if (rawState === undefined) {
+      const now = new Date().toISOString();
+      state = {
+        entity_id: entityId,
+        state: "unavailable",
+        last_changed: now,
+        last_updated: now,
+        attributes: {},
+        context: { id: "synthetic" },
+      };
+    } else {
+      // Ensure attributes are present so factories can safely read fields like device_class.
+      state = {
+        ...rawState,
+        attributes: rawState.attributes ?? {},
+      };
+    }
+
     const payload = {
       entity_id: entityId,
       state,
